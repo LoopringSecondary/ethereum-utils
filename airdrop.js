@@ -40,54 +40,37 @@ async function parseTokenInfo() {
 
 function collectCandidateAddresses() {
   const currentBlockNumber = web3.eth.blockNumber;
-  const fromBlockNumber = currentBlockNumber - 100000;
+  const fromBlockNumber = currentBlockNumber - 10000;
   console.log("fromBlockNumber:", fromBlockNumber, "toBlockNumber", currentBlockNumber);
 
   var fileName = "addresses";
   const ts = new Date().getTime();
-  fileName = fileName + "." + ts;
-  for (let i = fromBlockNumber; i <= currentBlockNumber; i++) {
-  //async.eachLimit(_.range(fromBlockNumber, currentBlockNumber), 10, function(i){
+  fileName = fileName + "." + fromBlockNumber + "-" + currentBlockNumber;
+  const blocks = _.range(fromBlockNumber, currentBlockNumber);
+  async.eachSeries(blocks, function(i, callback){
+    console.log("process block:", i);
     const addresses = new Set();
-    const txCount = web3.eth.getBlockTransactionCount(i);
+    web3.eth.getBlock(i, true, function(error, result){
+      if(!error) {
+        result.transactions.forEach(tx => {
+          addresses.add(tx.from);
+        });
 
-    async.eachLimit(_.range(txCount), 10, function(txIndex){
-      const tx = web3.eth.getTransactionFromBlock(i, txIndex);
-      const from = tx.from;
-      if (!addresses.has(from)) {
-        addresses.add(from);
+        console.log("addresses size:", addresses.size);
+        const qulitifiedSet = new Set();
+        async.eachLimit(addresses, 10, function(addr){
+          if (isQulitifiedAddress (addr)) {
+            qulitifiedSet.add(addr);
+          }
+        });
+
+        console.log("qulitifiedSet:", qulitifiedSet.size);
+        writeSetToFile(qulitifiedSet, fileName);
+        callback();
       }
     });
 
-
-    // for (let txIndex = 0; txIndex < txCount; txIndex ++) {
-    //   const tx = web3.eth.getTransactionFromBlock(i, txIndex);
-    //   const from = tx.from;
-    //   if (!addresses.has(from)) {
-    //     addresses.add(from);
-    //   }
-    // }
-
-    console.log("addresses:", addresses.size);
-
-    const qulitifiedSet = new Set();
-    // for (let addr of addresses) {
-    //   // console.log("addr:", addr);
-    //   if (isQulitifiedAddress (addr)) {
-    //     qulitifiedSet.add(addr);
-    //   }
-    // }
-
-    async.eachLimit(addresses, 10, function(addr){
-      if (isQulitifiedAddress (addr)) {
-        qulitifiedSet.add(addr);
-      }
-    });
-
-    console.log("qulitifiedSet:", qulitifiedSet.size);
-    writeSetToFile(qulitifiedSet, fileName);
-
-  }
+  });
 }
 
 function writeSetToFile(resSet, fileName) {

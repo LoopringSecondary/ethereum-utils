@@ -4,3 +4,4 @@ transpiled/
 .DS_Store
 .node-*
 .node-xmlhttprequest-sync*
+addresses.*
