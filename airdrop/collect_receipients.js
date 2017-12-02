@@ -13,18 +13,14 @@ const LrcContract = web3.eth.contract(JSON.parse(lrcAbi));
 const lrcAddr = "0xEF68e7C694F40c8202821eDF525dE3782458639f";
 const lrcToken = LrcContract.at(lrcAddr);
 
-const airdropAbi = '[{"constant":false,"inputs":[{"name":"tokenAddress","type":"address"},{"name":"amount","type":"uint256"},{"name":"minTokenBalance","type":"uint256"},{"name":"maxTokenBalance","type":"uint256"},{"name":"minEthBalance","type":"uint256"},{"name":"maxEthBalance","type":"uint256"},{"name":"recipients","type":"address[]"}],"name":"drop","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"token","type":"address"},{"name":"addr","type":"address"},{"name":"minTokenBalance","type":"uint256"},{"name":"maxTokenBalance","type":"uint256"},{"name":"minEthBalance","type":"uint256"},{"name":"maxEthBalance","type":"uint256"}],"name":"isQualitifiedAddress","outputs":[{"name":"result","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"payable":true,"stateMutability":"payable","type":"fallback"},{"anonymous":false,"inputs":[{"indexed":false,"name":"addr","type":"address"},{"indexed":false,"name":"amount","type":"uint256"}],"name":"AirDropped","type":"event"}]'; // tslint:disable-line
-const AirdropContract = web3.eth.contract(JSON.parse(airdropAbi));
-const airdropContractAddr = "0x9b3912Ab0eF08A772A097340400bA6a471e8De57";
-
 const eachLine = Promise.promisify(lineReader.eachLine);
 
 // global variables:
 const lrcAmount = 2 * 1e18;
 const minTokenBalance = 0;
 const maxTokenBalance = 0;
-const minEthBalance = 5 * 1e18;
-const maxEthBalance = 50000 * 1e18;
+const minEthBalance = 1 * 1e17;
+const maxEthBalance = 10000 * 1e18;
 
 async function parseTokenInfo() {
   const tokenInfos = [];
@@ -40,14 +36,20 @@ async function parseTokenInfo() {
 
 function collectCandidateAddresses() {
   const currentBlockNumber = web3.eth.blockNumber;
-  const fromBlockNumber = currentBlockNumber - 10000;
-  console.log("fromBlockNumber:", fromBlockNumber, "toBlockNumber", currentBlockNumber);
+  const fromBlockNumber = currentBlockNumber - 100000;
+  const toBlockNumber = currentBlockNumber - 10000;
+  console.log("fromBlockNumber:", fromBlockNumber, "toBlockNumber", toBlockNumber);
 
   var fileName = "addresses";
   const ts = new Date().getTime();
-  fileName = fileName + "." + fromBlockNumber + "-" + currentBlockNumber;
-  const blocks = _.range(fromBlockNumber, currentBlockNumber);
-  async.eachSeries(blocks, function(i, callback){
+  fileName = fileName + "." + fromBlockNumber + "-" + toBlockNumber;
+  console.log("res file: ", fileName);
+  const blocks = _.range(fromBlockNumber, toBlockNumber);
+
+  const qulitifiedSet = new Set();
+  const resultList = [];
+  let lastInd = 0;
+  async.eachLimit(blocks, 10, function(i, callback){
     console.log("process block:", i);
     const addresses = new Set();
     web3.eth.getBlock(i, true, function(error, result){
@@ -57,20 +59,28 @@ function collectCandidateAddresses() {
         });
 
         console.log("addresses size:", addresses.size);
-        const qulitifiedSet = new Set();
-        async.eachLimit(addresses, 10, function(addr){
+        async.eachLimit(addresses, 20, function(addr){
           if (isQulitifiedAddress (addr)) {
-            qulitifiedSet.add(addr);
+            if (!qulitifiedSet.has(addr)) {
+              qulitifiedSet.add(addr);
+              resultList.push(addr);
+            }
           }
         });
 
-        console.log("qulitifiedSet:", qulitifiedSet.size);
-        writeSetToFile(qulitifiedSet, fileName);
+        const len = resultList.length;
+        console.log("qulitifiedSet count:", len);
+        if (i % 100 == 0) {
+          console.log("write to file");
+          writeSetToFile(resultList.slice(lastInd, len), fileName);
+          lastInd = len;
+        }
         callback();
       }
     });
 
   });
+
 }
 
 function writeSetToFile(resSet, fileName) {
@@ -86,20 +96,10 @@ function isQulitifiedAddress(addr) {
   const ethBalanceNumber = ethBalance.toNumber();
   res = res && (ethBalanceNumber >= minEthBalance && ethBalanceNumber <= maxEthBalance);
 
-  // const lrcBalance = yield lrcToken.balanceOf(addr);
+  // const lrcBalance = lrcToken.balanceOf(addr);
   // const lrcBalanceNumber = lrcBalance.toNumber();
 
   // res = res && (lrcBalanceNumber >= minTokenBalance && lrcBalanceNumber <= maxTokenBalance);
-  return res;
-}
-
-async function parseAddressFile(fileName) {
-  var res = [];
-  await eachLine(fileName, function(line){
-    if (line && line.substring(0, 2) === "0x") {
-      res.push(line);
-    }
-  });
 
   return res;
 }
@@ -113,35 +113,5 @@ function getQulifiedAddresses(batchAddresses) {
   }
   return res;
 }
-
-async function main() {
-  const fromAddr = "0x6d4ee35d70ad6331000e370f079ad7df52e75005";
-  const airdropContractInstance = AirdropContract.at(airdropContractAddr);
-  const allRecipients = await parseAddressFile("./my_addresses");
-  const batchSize = 1000;
-  console.log("allRecipients:", allRecipients.length, "; batchSize:", batchSize);
-
-  for (var i = 0; i * batchSize < allRecipients.length; i ++) {
-    const batchRecipients = allRecipients.slice(i * batchSize, (i + 1) * batchSize);
-    const qulifiedRecipients = await getQulifiedAddresses(batchRecipients);
-    console.log("qulifiedRecipients length:", qulifiedRecipients.length);
-    await airdropContractInstance.drop(lrcAddr,
-                                       lrcAmount,
-                                       minTokenBalance,
-                                       maxTokenBalance,
-                                       minEthBalance,
-                                       maxEthBalance,
-                                       qulifiedRecipients,
-                                       {from: fromAddr,
-                                        gas: 1000000,
-                                        gasLimit: 1000000,
-                                        gasPrice: 1000000000
-                                       });
-    console.log("batch", i , "finished.");
-  }
-
-}
-
-// main();
 
 collectCandidateAddresses();
