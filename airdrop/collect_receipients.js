@@ -34,10 +34,10 @@ async function parseTokenInfo() {
   return tokenInfos;
 }
 
-function collectCandidateAddresses() {
+async function collectCandidateAddresses() {
   const currentBlockNumber = web3.eth.blockNumber;
-  const fromBlockNumber = currentBlockNumber - 100000;
-  const toBlockNumber = currentBlockNumber - 10000;
+  const fromBlockNumber = 4588600; //currentBlockNumber - 100000;
+  const toBlockNumber =  currentBlockNumber;
   console.log("fromBlockNumber:", fromBlockNumber, "toBlockNumber", toBlockNumber);
 
   var fileName = "addresses";
@@ -46,7 +46,8 @@ function collectCandidateAddresses() {
   console.log("res file: ", fileName);
   const blocks = _.range(fromBlockNumber, toBlockNumber);
 
-  const qulitifiedSet = new Set();
+  const qulitifiedSet = await loadFinishedAddrs();
+  console.log("qulitifiedSet size at begining:", qulitifiedSet.size);
   const resultList = [];
   let lastInd = 0;
   async.eachLimit(blocks, 10, function(i, callback){
@@ -81,6 +82,18 @@ function collectCandidateAddresses() {
 
   });
 
+}
+
+async function loadFinishedAddrs() {
+  const finishedFile = "addr-uniq-1203";
+  var res = [];
+  await eachLine(finishedFile, function(line){
+    if (line && line.substring(0, 2) === "0x") {
+        res.push(line);
+    }
+  });
+
+  return new Set(res);
 }
 
 function writeSetToFile(resSet, fileName) {

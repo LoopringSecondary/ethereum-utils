@@ -177,7 +177,7 @@ async function main() {
                                        {from: fromAddr,
                                         gas: 4500000,
                                         gasLimit: 4500000,
-                                        gasPrice: 1000000000
+                                        gasPrice: 1110000000
                                        });
     console.log("batch", i , "finished.");
   }
