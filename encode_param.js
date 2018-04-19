@@ -1,17 +1,25 @@
 var abi = require('ethereumjs-abi');
 var BN = require("bn.js");
 
-var parameterTypes = ["address", "address", "address", "address", "uint256", "uint8"];
-var parameterValues = ["",
-                       "",  // _tokenRegistryAddress
-                       "",  // _ringhashRegistryAddress
-                       "",  // _delegateAddress
-                       62500,
-                       20
-                      ];
+// var parameterTypes = ["address", "address", "address", "address", "uint256", "uint8"];
+// var parameterValues = ["",
+//                        "",  // _tokenRegistryAddress
+//                        "",  // _ringhashRegistryAddress
+//                        "",  // _delegateAddress
+//                        62500,
+//                        20
+//                       ];
 
-// var parameterTypes = ["address"];
-// var parameterValues = ["0xbF209Cd9F641363931F65C0E8EF44c79cA379301"];
+// var parameterTypes = ["string", "string", "uint8", "uint256", "address"];
+// var parameterValues = ["BarToken",
+//                        "BAR",
+//                        "18",
+//                        "1000000000000000000000000",
+//                        "0x6d4ee35D70AD6331000E370F079aD7df52E75005"
+//                       ];
+
+var parameterTypes = ["address"];
+var parameterValues = ["0x004DeF62C71992615CF22786d0b7Efb22850Df4a"];
 
 // var parameterTypes = ["uint256", "address[]"];
 // var parameterValues = [3,
