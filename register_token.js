@@ -28,7 +28,7 @@ async function main() {
   const tokenInfos = await parseTokenInfo();
   // console.log("tokenInfos:", tokenInfos);
 
-  const contractAddr = "0x004DeF62C71992615CF22786d0b7Efb22850Df4a";
+  const contractAddr = "0xAbe12e3548fDb334D11fcc962c413d91Ef12233F";
   const owner = "0x6d4ee35d70ad6331000e370f079ad7df52e75005";
   const registerTokenContractInstance = RegisterTokenContract.at(contractAddr);
 
@@ -38,7 +38,7 @@ async function main() {
     const tokenAddr = tokenInfo[0];
     const tokenSymbol = tokenInfo[2];
     console.log(tokenAddr, tokenSymbol);
-    // await registerTokenContractInstance.registerToken(tokenAddr, tokenSymbol, {from: owner, gas: 150000, gasLimit: 150000, gasPrice: 9110000000});
+    await registerTokenContractInstance.registerToken(tokenAddr, tokenSymbol, {from: owner, gas: 150000, gasLimit: 150000, gasPrice: 9110000000});
   }
 }
 
