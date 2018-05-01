@@ -9,13 +9,13 @@ const abi = '[{"constant":false,"inputs":[{"name":"addr","type":"address"},{"nam
 
 const RegisterTokenContract = web3.eth.contract(JSON.parse(abi));
 
-const tokensFile = "./tokens.md";
+const tokensFile = "./registration.md";
 const eachLine = Promise.promisify(lineReader.eachLine);
 
 async function parseTokenInfo() {
   const tokenInfos = [];
   await eachLine(tokensFile, function(line) {
-    const fields = line.split(/\ +/);
+    const fields = line.split(/\|/).map(item => item.trim());
     if (fields.length >= 4 && fields[0].startsWith("0x")) {
       tokenInfos.push(fields);
     }
@@ -38,7 +38,7 @@ async function main() {
     const tokenAddr = tokenInfo[0];
     const tokenSymbol = tokenInfo[2];
     console.log(tokenAddr, tokenSymbol);
-    await registerTokenContractInstance.registerToken(tokenAddr, tokenSymbol, {from: owner, gas: 150000, gasLimit: 150000, gasPrice: 1110000000});
+    // await registerTokenContractInstance.registerToken(tokenAddr, tokenSymbol, {from: owner, gas: 150000, gasLimit: 150000, gasPrice: 9110000000});
   }
 }
 
