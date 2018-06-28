@@ -73,7 +73,7 @@ async function crawlBindings() {
 }
 
 function getBindingEventUrl(pageNo) {
-  return "https://api.etherscan.io/api?module=logs&action=getLogs&fromBlock=379224&toBlock=latest\
+  return "https://api.etherscan.io/api?module=logs&action=getLogs&fromBlock=4000000&toBlock=latest\
 &address=0xbf78B6E180ba2d1404c92Fc546cbc9233f616C42\
 &topic0=0xa3223ad9ca9b61a866c910b0751d38f78fe7962d9baecf76400dee74eea33ba2"
 }
