@@ -7,7 +7,7 @@ const lrcAbi = '[{"constant":false,"inputs":[{"name":"_spender","type":"address"
 const lrcAddr = "0xEF68e7C694F40c8202821eDF525dE3782458639f";
 const lrcToken = new web3.eth.Contract(JSON.parse(lrcAbi), lrcAddr);
 
-const targetProjectId = "1";
+const targetProjectId = 1;
 let resultFile = "eth-neo-binding.csv";
 const lrcHoldersFile = "lrc-holders";
 const bindingStartBlock = 5104000;
@@ -17,22 +17,23 @@ const bindingMap = new Map();
 const invalidBindingMap = new Map();
 const lrcBalanceMap = new Map();
 
-function parseBindingPairs(response) {
+function parseBindingEvents(response) {
   const result = [];
   if (response.result && response.result.length > 0) {
     for (const item of response.result) {
-      if (item.isError !== "0") continue;
-      const ethAddr = item.from;
-      const input = item.input;
-      const params = input.slice(10);
+      const data = item.data;
       try {
-        const decoded = web3.eth.abi.decodeParameters(["uint8", "string"], params);
-        const [projectId, targetAddr] = [decoded[0], decoded[1]];
+        const ethAddr = bytes32ToAddress(data.slice(0, 66));
+        const projectId = parseInt(data.slice(66, 130), 16);
+        let targetAddr = data.slice(258);
+        // console.log("targetAddr before:", targetAddr);
+        targetAddr = web3.utils.toAscii("0x" + targetAddr);
         if (projectId !== targetProjectId) {
           console.log("ProjectId is", projectId, ", skip.");
           continue;
         }
-        result.push([ethAddr, targetAddr]);
+        // console.log(ethAddr, targetAddr);
+        result.push([ethAddr, targetAddr, item.transactionHash]);
       } catch (err) {
         console.log(err);
         continue;
@@ -43,38 +44,38 @@ function parseBindingPairs(response) {
   return result;
 }
 
-async function crawlBindings() {
-  for(let i = 1; i < 2 ; i++) {
-    const url = getBindingTxPagedUrl(i);
-    console.log(url);
-    const responseStr = await request(url);
-    const respObj = JSON.parse(responseStr);
-    if (!respObj || !respObj.result || respObj.result.length === 0) {
-      console.log("empty respose, stop crawling binding pages. pageNo:", i);
-      break;
-    }
+function bytes32ToAddress(str) {
+  return "0x" + str.slice(26);
+}
 
-    const pairs = await parseBindingPairs(respObj);
-    for (const pair of pairs) {
-      if (bindingMap.has(pair[0])) {
-        console.log("WARN:", pair[0], "has already been binded. will override by:", pair[1]);
-      }
-      if (pair[1].length != 34) {
-        console.log("ERROR: invalid target address:", pair[1]);
-        invalidBindingMap.set(pair[0], pair[1]);
-        continue;
-      }
-      bindingMap.set(pair[0], pair[1]);
+async function crawlBindings() {
+  const url = getBindingEventUrl();
+  console.log(url);
+  const responseStr = await request(url);
+  const respObj = JSON.parse(responseStr);
+  if (!respObj || !respObj.result || respObj.result.length === 0) {
+    console.log("Error:empty respose");
+    return;
+  }
+
+  const events = await parseBindingEvents(respObj);
+  for (const event of events) {
+    if (bindingMap.has(event[0])) {
+      console.log("WARN:", event[0], "has already been binded. will override by:", event[1]);
     }
+    if (event[1].length != 34) {
+      console.log("ERROR: invalid target address:", event[1], " tx:", event[2]);
+      invalidBindingMap.set(event[0], event[1]);
+      continue;
+    }
+    bindingMap.set(event[0], event[1]);
   }
 }
 
-function getBindingTxPagedUrl(pageNo) {
-  return "https://api.etherscan.io/api?\
-module=account&action=txlist&\
-address=0xbf78B6E180ba2d1404c92Fc546cbc9233f616C42&\
-startblock=5104000&endblock=9999999&page=" +
-    pageNo + "&offset=50&sort=asc&apiKey=1F73WEV5ZM2HKPIVCG65U5QQ427NPUG9FI";
+function getBindingEventUrl(pageNo) {
+  return "https://api.etherscan.io/api?module=logs&action=getLogs&fromBlock=379224&toBlock=latest\
+&address=0xbf78B6E180ba2d1404c92Fc546cbc9233f616C42\
+&topic0=0xa3223ad9ca9b61a866c910b0751d38f78fe7962d9baecf76400dee74eea33ba2"
 }
 
 async function getAllLrcHolderBalances() {
@@ -116,7 +117,7 @@ async function main() {
   }
 
   await crawlBindings();
-  await getAllLrcHolderBalances();
+  // await getAllLrcHolderBalances();
   writeResultToFile();
 }
 
