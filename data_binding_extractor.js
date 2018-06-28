@@ -117,7 +117,7 @@ async function main() {
   }
 
   await crawlBindings();
-  // await getAllLrcHolderBalances();
+  await getAllLrcHolderBalances();
   writeResultToFile();
 }
 
