@@ -10,7 +10,8 @@ const lrcToken = new web3.eth.Contract(JSON.parse(lrcAbi), lrcAddr);
 const targetProjectId = 1;
 let resultFile = "eth-neo-binding.csv";
 const lrcHoldersFile = "lrc-holders";
-const bindingStartBlock = 5104000;
+const bindingStartBlock = 5000000;
+const latestBlock = 6300000;
 const DEST_BLOCK = 5850000;
 
 const bindingMap = new Map();
@@ -19,25 +20,24 @@ const lrcBalanceMap = new Map();
 
 function parseBindingEvents(response) {
   const result = [];
-  if (response.result && response.result.length > 0) {
-    for (const item of response.result) {
-      const data = item.data;
-      try {
-        const ethAddr = bytes32ToAddress(data.slice(0, 66));
-        const projectId = parseInt(data.slice(66, 130), 16);
-        let targetAddr = data.slice(258);
-        // console.log("targetAddr before:", targetAddr);
-        targetAddr = web3.utils.toAscii("0x" + targetAddr);
-        if (projectId !== targetProjectId) {
-          console.log("ProjectId is", projectId, ", skip.");
-          continue;
-        }
-        // console.log(ethAddr, targetAddr);
-        result.push([ethAddr, targetAddr, item.transactionHash]);
-      } catch (err) {
-        console.log(err);
+
+  for (const item of response.result) {
+    const data = item.data;
+    try {
+      const ethAddr = bytes32ToAddress(data.slice(0, 66));
+      const projectId = parseInt(data.slice(66, 130), 16);
+      let targetAddr = data.slice(258);
+      // console.log("targetAddr before:", targetAddr);
+      targetAddr = web3.utils.toAscii("0x" + targetAddr);
+      if (projectId !== targetProjectId) {
+        // console.log("ProjectId is", projectId, ", skip.");
         continue;
       }
+      // console.log(ethAddr, targetAddr);
+      result.push([ethAddr, targetAddr, item.transactionHash]);
+    } catch (err) {
+      console.log(err);
+      continue;
     }
   }
 
@@ -48,33 +48,57 @@ function bytes32ToAddress(str) {
   return "0x" + str.slice(26);
 }
 
-async function crawlBindings() {
-  const url = getBindingEventUrl();
+async function getAllBindings() {
+  let step = 100000;
+  for (let fromBlock = bindingStartBlock; fromBlock < latestBlock; fromBlock += step) {
+    if ((fromBlock >= 5500000 && fromBlock <= 5550000) ||
+        (fromBlock >= 5850000 && fromBlock <= 5900000)) {
+      step = 20000;
+    } else {
+      step = 100000;
+    }
+    const resLen = await getBindingsFromBlocks(fromBlock, fromBlock + step);
+  }
+}
+
+async function getBindingsFromBlocks(fromBlock, toBlock) {
+  const url = getBindingEventUrl(fromBlock, toBlock);
   console.log(url);
   const responseStr = await request(url);
   const respObj = JSON.parse(responseStr);
   if (!respObj || !respObj.result || respObj.result.length === 0) {
     console.log("Error:empty respose");
-    return;
+    return 0;
+  }
+  console.log("response.result.length:", respObj.result.length);
+  if (respObj.result.length == 1000) {
+    console.log("fromBlock:", fromBlock, "; toBlock:", toBlock);
+    console.log("WARN: result = 1000, some events probably missing.");
+    return 1000;
   }
 
   const events = await parseBindingEvents(respObj);
+  console.log("events len:", events.length);
+
   for (const event of events) {
     if (bindingMap.has(event[0])) {
-      console.log("WARN:", event[0], "has already been binded. will override by:", event[1]);
+      // console.log("WARN:", event[0], "has already been binded. will override by:", event[1]);
     }
     if (event[1].length != 34) {
-      console.log("ERROR: invalid target address:", event[1], " tx:", event[2]);
+      // console.log("ERROR: invalid target address:", event[1], " tx:", event[2]);
       invalidBindingMap.set(event[0], event[1]);
       continue;
     }
     bindingMap.set(event[0], event[1]);
   }
+
+  return respObj.result.length;
+
 }
 
-function getBindingEventUrl(pageNo) {
-  return "https://api.etherscan.io/api?module=logs&action=getLogs&fromBlock=4000000&toBlock=latest\
-&address=0xbf78B6E180ba2d1404c92Fc546cbc9233f616C42\
+function getBindingEventUrl(fromBlock, toBlock) {
+  return "https://api.etherscan.io/api?module=logs&action=getLogs&fromBlock=" + fromBlock +
+    "&toBlock=" + toBlock + "&address=0xbf78B6E180ba2d1404c92Fc546cbc9233f616C42\
 &topic0=0xa3223ad9ca9b61a866c910b0751d38f78fe7962d9baecf76400dee74eea33ba2"
 }
 
@@ -108,16 +132,8 @@ function writeResultToFile() {
 async function main() {
   var args = process.argv.slice(2);
 
-  let fromBlock = bindingStartBlock;
-  if (args && args.length > 0) {
-    const newFromBlock = args[0];
-    if (newFromBlock > fromBlock) {
-      fromBlock = newFromBlock;
-    }
-  }
-
-  await crawlBindings();
-  await getAllLrcHolderBalances();
+  await getAllBindings();
+  // await getAllLrcHolderBalances();
   writeResultToFile();
 }
 
