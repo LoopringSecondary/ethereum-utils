@@ -6,9 +6,9 @@ const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io
 async function parseAllOrderOwners() {
   const orderCountMap = new Map();
 
-  const startBlock = 5535319; // block number contract created.
-  const latestBlock = 6300000;
-  const step = 100000;
+  const startBlock = 6643435; // block number contract created.
+  const latestBlock = 6646435;
+  const step = 1000;
   for (let fromBlock = startBlock; fromBlock < latestBlock; fromBlock += step) {
     const subMap = await getOrderCountInBlockRange(fromBlock, fromBlock + step);
     reduce(orderCountMap, subMap);
@@ -39,24 +39,25 @@ async function getOrderCountInBlockRange(fromBlock, toBlock) {
       // console.log("data:", data);
       const order1OwnerStr = data.slice(6 * 64, 7 * 64);
       const order1Owner = bytes32ToAddress(order1OwnerStr);
-      if (resMap.has(order1Owner)) {
-        const oldVal = resMap.get(order1Owner);
-        resMap.set(order1Owner, oldVal + 1);
-      } else {
-        resMap.set(order1Owner, 1);
-      }
 
       const order2OwnerStr = data.slice(13 * 64, 14 * 64);
       const order2Owner = bytes32ToAddress(order2OwnerStr);
-      if (resMap.has(order2Owner)) {
-        const oldVal = resMap.get(order2Owner);
-        resMap.set(order2Owner, oldVal + 1);
-      } else {
-        resMap.set(order2Owner, 1);
+
+      const minerStr = data.slice(1 * 64, 2 * 64);
+      const miner = bytes32ToAddress(minerStr);
+      console.log("order1OwnerStr: " + order1OwnerStr);
+      console.log("order2OwnerStr: " + order2OwnerStr);
+      console.log("minerStr: " + minerStr);
+      if (minerStr == order1OwnerStr || minerStr == order2OwnerStr) {
+          console.log("find a P2P!")
+          if (resMap.has(miner)) {
+              const oldVal = resMap.get(miner);
+              resMap.set(miner, oldVal + 1);
+          } else {
+              resMap.set(order2Owner, 1);
+          }
       }
 
-      // console.log("order1Owner:", order1Owner);
-      // console.log("order2Owner:", order2Owner);
     } catch (err) {
       console.log(err);
       continue;
@@ -96,19 +97,25 @@ function reduce(totalMap, subMap) {
 }
 
 function writeResultToFile(ordersCountMap, resultFile) {
-  const keys = [...ordersCountMap.keys()];
   const secs = Math.floor(new Date().getTime() / 1000);
   resultFile = resultFile + "." + secs;
 
-  keys.forEach((addr) => {
-    fs.appendFileSync(resultFile, addr + "," + ordersCountMap.get(addr) + "\n");
+  const keys = [...ordersCountMap.keys()];
+  const resultTupple = keys.map((key) => [key, ordersCountMap.get(key)]);
+  const sorter = (a, b) => {
+    if (a[1] >= b[1]) return -1;
+      else return 1;
+    };
+  resultTupple.sort(sorter);
+  resultTupple.forEach((item) => {
+    fs.appendFileSync(resultFile, item[0] + "," + item[1] + "\n");
   });
 }
 
 async function main() {
   const ordersCountMap = await parseAllOrderOwners();
 
-  const resultFile = "orders-count.csv";
+  const resultFile = "orders-p2p.csv";
   writeResultToFile(ordersCountMap, resultFile);
 }
 
