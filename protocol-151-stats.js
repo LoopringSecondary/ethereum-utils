@@ -7,7 +7,7 @@ async function parseAllOrderOwners() {
   const orderCountMap = new Map();
 
   const startBlock = 6643435; // block number contract created.
-  const latestBlock = 6646435;
+  const latestBlock = 6669838;
   const step = 1000;
   for (let fromBlock = startBlock; fromBlock < latestBlock; fromBlock += step) {
     const subMap = await getOrderCountInBlockRange(fromBlock, fromBlock + step);
@@ -50,20 +50,30 @@ async function getOrderCountInBlockRange(fromBlock, toBlock) {
       console.log("minerStr: " + minerStr);
       if (minerStr == order1OwnerStr || minerStr == order2OwnerStr) {
           console.log("find a P2P!")
-          if (resMap.has(miner)) {
-              const oldVal = resMap.get(miner);
-              resMap.set(miner, oldVal + 1);
-          } else {
+          if (!resMap.has(order1Owner) && resMap.has(order2Owner)) {
+              resMap.set(order1Owner, 1);
+              const oldVal = resMap.get(order2Owner);
+              resMap.set(order2Owner, oldVal + 1);
+          } else if (resMap.has(order1Owner) && !resMap.has(order2Owner)) {
               resMap.set(order2Owner, 1);
+              const oldVal = resMap.get(order1Owner);
+              resMap.set(order1Owner, oldVal + 1);
+          } else if (!resMap.has(order1Owner) && !resMap.has(order2Owner)) {
+              resMap.set(order1Owner, 1);
+              resMap.set(order2Owner, 1);
+          } else {
+              const oldVal10 = resMap.get(order1Owner);
+              resMap.set(order1Owner, oldVal10 + 1);
+              const oldVal20 = resMap.get(order2Owner);
+              resMap.set(order2Owner, oldVal20 + 1);
           }
-      }
+       }  
 
     } catch (err) {
       console.log(err);
       continue;
     }
   }
-
   return resMap;
 }
 
