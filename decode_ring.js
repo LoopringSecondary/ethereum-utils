@@ -18,11 +18,12 @@ const RING_SIZE = 2;
 
 function bnToNumber(bn) {
   const bnStr = bn.toString(10);
-  return parseInt(bnStr, 10);
+  // return parseInt(bnStr, 10);
+  return bnStr;
 }
 
 function numberToBN(num) {
-  return new BN(num.toString(10), 10);
+  return new BN(num, 10);
 }
 
 async function queryFillAmount(order) {
